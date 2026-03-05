@@ -10,274 +10,419 @@ interface Subject {
 interface StudyLog {
   id: string;
   subjectId: string;
-  date: string;
-  duration: number; 
+  date: string;           
+  duration: number;       
   content: string;
   notes: string;
 }
 
-interface Goal {
+interface MonthlyGoal {
   id: string;
-  month: string; 
+  month: string;          
   subjectId: string | null; 
-  targetDuration: number; 
+  targetMinutes: number;
 }
 
-const calculateAchieved = (logs: StudyLog[], month: string, subjectId: string | null = null) => {
-  const start = new Date(`${month}-01`);
-  const end = new Date(start.getFullYear(), start.getMonth() + 1, 0, 23, 59, 59);
-  
+function getAchievedMinutes(
+  logs: StudyLog[],
+  targetMonth: string,
+  subjectId?: string
+): number {
+  const [year, month] = targetMonth.split('-').map(Number);
+  const start = new Date(year, month - 1, 1);
+  const end = new Date(year, month, 0, 23, 59, 59);
+
   return logs
-    .filter(log => {
+    .filter((log) => {
       const logDate = new Date(log.date);
-      return logDate >= start && logDate <= end && (subjectId ? log.subjectId === subjectId : true);
+      return (
+        logDate >= start &&
+        logDate <= end &&
+        (!subjectId || log.subjectId === subjectId)
+      );
     })
-    .reduce((total, log) => total + log.duration, 0);
-};
+    .reduce((sum, log) => sum + log.duration, 0);
+}
 
 function App() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [studyLogs, setStudyLogs] = useState<StudyLog[]>([]);
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
-  const [newSubjectName, setNewSubjectName] = useState('');
-  const [editSubjectId, setEditSubjectId] = useState<string | null>(null);
-  const [editSubjectName, setEditSubjectName] = useState('');
+  const [logs, setLogs] = useState<StudyLog[]>([]);
+  const [goals, setGoals] = useState<MonthlyGoal[]>([]);
 
-  const [newLog, setNewLog] = useState<Omit<StudyLog, 'id' | 'subjectId'>>({
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
+
+  const [newSubjectName, setNewSubjectName] = useState('');
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+
+  const [logForm, setLogForm] = useState({
     date: new Date().toISOString().slice(0, 16),
-    duration: 0,
+    duration: '',
     content: '',
     notes: '',
   });
-  const [editLogId, setEditLogId] = useState<string | null>(null);
+  const [editingLog, setEditingLog] = useState<StudyLog | null>(null);
 
-  const [newGoal, setNewGoal] = useState<Omit<Goal, 'id'>>({
+  const [goalForm, setGoalForm] = useState({
     month: new Date().toISOString().slice(0, 7),
-    subjectId: null,
-    targetDuration: 0,
+    subjectId: '' as string | null,
+    targetMinutes: '',
   });
-  const [editGoalId, setEditGoalId] = useState<string | null>(null);
-
+  const [editingGoal, setEditingGoal] = useState<MonthlyGoal | null>(null);
 
   useEffect(() => {
-    const savedSubjects = localStorage.getItem('subjects');
-    const savedLogs = localStorage.getItem('studyLogs');
-    const savedGoals = localStorage.getItem('goals');
-    if (savedSubjects) setSubjects(JSON.parse(savedSubjects));
-    if (savedLogs) setStudyLogs(JSON.parse(savedLogs));
-    if (savedGoals) setGoals(JSON.parse(savedGoals));
+    const saved = {
+      subjects: localStorage.getItem('subjects'),
+      logs: localStorage.getItem('studyLogs'),
+      goals: localStorage.getItem('monthlyGoals'),
+    };
+    if (saved.subjects) setSubjects(JSON.parse(saved.subjects));
+    if (saved.logs) setLogs(JSON.parse(saved.logs));
+    if (saved.goals) setGoals(JSON.parse(saved.goals));
   }, []);
-
 
   useEffect(() => {
     localStorage.setItem('subjects', JSON.stringify(subjects));
   }, [subjects]);
 
   useEffect(() => {
-    localStorage.setItem('studyLogs', JSON.stringify(studyLogs));
-  }, [studyLogs]);
+    localStorage.setItem('studyLogs', JSON.stringify(logs));
+  }, [logs]);
 
   useEffect(() => {
-    localStorage.setItem('goals', JSON.stringify(goals));
+    localStorage.setItem('monthlyGoals', JSON.stringify(goals));
   }, [goals]);
 
-  const handleAddOrEditSubject = () => {
-    if (editSubjectId) {
-      setSubjects(subjects.map(sub => sub.id === editSubjectId ? { ...sub, name: editSubjectName } : sub));
-      setEditSubjectId(null);
-      setEditSubjectName('');
-    } else if (newSubjectName.trim()) {
-      setSubjects([...subjects, { id: uuidv4(), name: newSubjectName.trim() }]);
-      setNewSubjectName('');
-    }
-  };
+  const handleSaveSubject = () => {
+    const name = (editingSubject ? editingSubject.name : newSubjectName).trim();
+    if (!name) return alert('Vui lòng nhập tên môn học');
 
-  const handleEditSubject = (sub: Subject) => {
-    setEditSubjectId(sub.id);
-    setEditSubjectName(sub.name);
-  };
+    const isDuplicate = subjects.some(
+      (s) => s.name.toLowerCase() === name.toLowerCase() && s.id !== editingSubject?.id
+    );
+    if (isDuplicate) return alert('Môn học này đã tồn tại!');
 
-  const handleDeleteSubject = (id: string) => {
-    setSubjects(subjects.filter(sub => sub.id !== id));
-    setStudyLogs(studyLogs.filter(log => log.subjectId !== id));
-    setGoals(goals.filter(goal => goal.subjectId !== id));
-    if (selectedSubject === id) setSelectedSubject(null);
-  };
-
-
-  const handleAddOrEditLog = () => {
-    if (!selectedSubject) return;
-
-    if (editLogId) {
-      setStudyLogs(studyLogs.map(log => log.id === editLogId ? { ...log, ...newLog } : log));
-      setEditLogId(null);
+    if (editingSubject) {
+      setSubjects(subjects.map((s) => (s.id === editingSubject.id ? { ...s, name } : s)));
+      setEditingSubject(null);
     } else {
-      setStudyLogs([...studyLogs, { id: uuidv4(), subjectId: selectedSubject, ...newLog }]);
+      setSubjects([...subjects, { id: uuidv4(), name }]);
     }
-    setNewLog({ date: new Date().toISOString().slice(0, 16), duration: 0, content: '', notes: '' });
+    setNewSubjectName('');
   };
 
-  const handleEditLog = (log: StudyLog) => {
-    setEditLogId(log.id);
-    setNewLog({ date: log.date, duration: log.duration, content: log.content, notes: log.notes });
+  const startEditSubject = (sub: Subject) => {
+    setEditingSubject(sub);
+    setNewSubjectName(sub.name);
   };
 
-  const handleDeleteLog = (id: string) => {
-    setStudyLogs(studyLogs.filter(log => log.id !== id));
+  const deleteSubject = (id: string) => {
+    if (!confirm('Xóa môn học này sẽ xóa hết lịch học và mục tiêu liên quan. Tiếp tục?')) return;
+    setSubjects(subjects.filter((s) => s.id !== id));
+    setLogs(logs.filter((l) => l.subjectId !== id));
+    setGoals(goals.filter((g) => g.subjectId !== id));
+    if (selectedSubjectId === id) setSelectedSubjectId(null);
   };
 
+  const handleSaveLog = () => {
+    if (!selectedSubjectId) return alert('Vui lòng chọn môn học trước');
 
-  const handleAddOrEditGoal = () => {
-    if (editGoalId) {
-      setGoals(goals.map(goal => goal.id === editGoalId ? { ...goal, ...newGoal } : goal));
-      setEditGoalId(null);
+    const durationNum = parseInt(logForm.duration);
+    if (isNaN(durationNum) || durationNum <= 0) return alert('Thời lượng phải là số dương');
+
+    const logData = {
+      date: logForm.date,
+      duration: durationNum,
+      content: logForm.content.trim(),
+      notes: logForm.notes.trim(),
+    };
+
+    if (editingLog) {
+      setLogs(
+        logs.map((l) =>
+          l.id === editingLog.id ? { ...l, ...logData } : l
+        )
+      );
+      setEditingLog(null);
     } else {
-      setGoals([...goals, { id: uuidv4(), ...newGoal }]);
+      setLogs([
+        ...logs,
+        { id: uuidv4(), subjectId: selectedSubjectId, ...logData },
+      ]);
     }
-    setNewGoal({ month: new Date().toISOString().slice(0, 7), subjectId: null, targetDuration: 0 });
+
+    setLogForm({
+      date: new Date().toISOString().slice(0, 16),
+      duration: '',
+      content: '',
+      notes: '',
+    });
   };
 
-  const handleEditGoal = (goal: Goal) => {
-    setEditGoalId(goal.id);
-    setNewGoal({ month: goal.month, subjectId: goal.subjectId, targetDuration: goal.targetDuration });
+  const startEditLog = (log: StudyLog) => {
+    setEditingLog(log);
+    setLogForm({
+      date: log.date.slice(0, 16),
+      duration: log.duration.toString(),
+      content: log.content,
+      notes: log.notes,
+    });
   };
 
-  const handleDeleteGoal = (id: string) => {
-    setGoals(goals.filter(goal => goal.id !== id));
+  const deleteLog = (id: string) => {
+    if (!confirm('Xóa lịch học này?')) return;
+    setLogs(logs.filter((l) => l.id !== id));
+  };
+  const handleSaveGoal = () => {
+    const minutes = parseInt(goalForm.targetMinutes);
+    if (isNaN(minutes) || minutes <= 0) return alert('Mục tiêu phải là số dương');
+
+    const goalData = {
+      month: goalForm.month,
+      subjectId: goalForm.subjectId || null,
+      targetMinutes: minutes,
+    };
+
+    if (editingGoal) {
+      setGoals(
+        goals.map((g) =>
+          g.id === editingGoal.id ? { ...g, ...goalData } : g
+        )
+      );
+      setEditingGoal(null);
+    } else {
+      const duplicate = goals.some(
+        (g) =>
+          g.month === goalForm.month &&
+          g.subjectId === (goalForm.subjectId || null)
+      );
+      if (duplicate) return alert('Đã có mục tiêu cho tháng/môn này rồi!');
+
+      setGoals([...goals, { id: uuidv4(), ...goalData }]);
+    }
+
+    setGoalForm({
+      month: new Date().toISOString().slice(0, 7),
+      subjectId: '',
+      targetMinutes: '',
+    });
   };
 
+  const startEditGoal = (goal: MonthlyGoal) => {
+    setEditingGoal(goal);
+    setGoalForm({
+      month: goal.month,
+      subjectId: goal.subjectId || '',
+      targetMinutes: goal.targetMinutes.toString(),
+    });
+  };
 
-  const selectedLogs = studyLogs.filter(log => log.subjectId === selectedSubject);
+  const deleteGoal = (id: string) => {
+    if (!confirm('Xóa mục tiêu này?')) return;
+    setGoals(goals.filter((g) => g.id !== id));
+  };
 
+  const currentSubjectName = subjects.find((s) => s.id === selectedSubjectId)?.name || '';
 
-  const uniqueMonths = [...new Set(goals.map(g => g.month))].sort().reverse();
+  const uniqueGoalMonths = [...new Set(goals.map((g) => g.month))].sort().reverse();
 
   return (
     <div className="app">
-      <h1>Ứng Dụng Theo Dõi Học Tập</h1>
-      <section className="section">
-        <h2>Quản Lý Môn Học</h2>
-        <div className="form">
-          <input
-            type="text"
-            value={editSubjectId ? editSubjectName : newSubjectName}
-            onChange={e => editSubjectId ? setEditSubjectName(e.target.value) : setNewSubjectName(e.target.value)}
-            placeholder="Tên môn học..."
-          />
-          <button onClick={handleAddOrEditSubject}>
-            {editSubjectId ? 'Sửa' : 'Thêm'}
-          </button>
-        </div>
-        <ul className="list">
-          {subjects.map(sub => (
-            <li key={sub.id}>
-              <span onClick={() => setSelectedSubject(sub.id)} className={selectedSubject === sub.id ? 'selected' : ''}>
-                {sub.name}
-              </span>
-              <div>
-                <button onClick={() => handleEditSubject(sub)}>Sửa</button>
-                <button onClick={() => handleDeleteSubject(sub.id)}>Xóa</button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <header>
+        <h1>Theo Dõi Tiến Độ Học Tập</h1>
+      </header>
 
-      {selectedSubject && (
-        <section className="section">
-          <h2>Tiến Độ Học Tập: {subjects.find(sub => sub.id === selectedSubject)?.name}</h2>
-          <div className="form">
+      <main>
+        <section className="card">
+          <h2>Danh Mục Môn Học</h2>
+          <div className="form-row">
             <input
-              type="datetime-local"
-              value={newLog.date}
-              onChange={e => setNewLog({ ...newLog, date: e.target.value })}
+              type="text"
+              placeholder="Tên môn học (Toán, Lý, Hóa...)"
+              value={editingSubject ? editingSubject.name : newSubjectName}
+              onChange={(e) =>
+                editingSubject
+                  ? setEditingSubject({ ...editingSubject, name: e.target.value })
+                  : setNewSubjectName(e.target.value)
+              }
             />
-            <input
-              type="number"
-              value={newLog.duration}
-              onChange={e => setNewLog({ ...newLog, duration: parseInt(e.target.value) || 0 })}
-              placeholder="Thời lượng (phút)"
-            />
-            <input
-              value={newLog.content}
-              onChange={e => setNewLog({ ...newLog, content: e.target.value })}
-              placeholder="Nội dung học..."
-            />
-            <input
-              value={newLog.notes}
-              onChange={e => setNewLog({ ...newLog, notes: e.target.value })}
-              placeholder="Ghi chú..."
-            />
-            <button onClick={handleAddOrEditLog}>
-              {editLogId ? 'Sửa' : 'Thêm'}
+            <button onClick={handleSaveSubject}>
+              {editingSubject ? 'Lưu sửa' : 'Thêm môn'}
             </button>
+            {editingSubject && (
+              <button className="secondary" onClick={() => setEditingSubject(null)}>
+                Hủy
+              </button>
+            )}
           </div>
-          <ul className="list">
-            {selectedLogs.map(log => (
-              <li key={log.id}>
-                <span>
-                  {new Date(log.date).toLocaleString()} - {log.duration} phút - {log.content} ({log.notes})
-                </span>
-                <div>
-                  <button onClick={() => handleEditLog(log)}>Sửa</button>
-                  <button onClick={() => handleDeleteLog(log.id)}>Xóa</button>
-                </div>
-              </li>
-            ))}
+
+          <ul className="subject-list">
+            {subjects.length === 0 ? (
+              <p className="empty">Chưa có môn học nào</p>
+            ) : (
+              subjects.map((sub) => (
+                <li key={sub.id} className={selectedSubjectId === sub.id ? 'active' : ''}>
+                  <span onClick={() => setSelectedSubjectId(sub.id)}>{sub.name}</span>
+                  <div className="actions">
+                    <button className="edit" onClick={() => startEditSubject(sub)}>
+                      Sửa
+                    </button>
+                    <button className="delete" onClick={() => deleteSubject(sub.id)}>
+                      Xóa
+                    </button>
+                  </div>
+                </li>
+              ))
+            )}
           </ul>
         </section>
-      )}
-      <section className="section">
-        <h2>Quản Lý Mục Tiêu Hàng Tháng</h2>
-        <div className="form">
-          <input
-            type="month"
-            value={newGoal.month}
-            onChange={e => setNewGoal({ ...newGoal, month: e.target.value })}
-          />
-          <select
-            value={newGoal.subjectId || ''}
-            onChange={e => setNewGoal({ ...newGoal, subjectId: e.target.value || null })}
-          >
-            <option value="">Tổng thời lượng</option>
-            {subjects.map(sub => (
-              <option key={sub.id} value={sub.id}>{sub.name}</option>
-            ))}
-          </select>
-          <input
-            type="number"
-            value={newGoal.targetDuration}
-            onChange={e => setNewGoal({ ...newGoal, targetDuration: parseInt(e.target.value) || 0 })}
-            placeholder="Mục tiêu (phút)"
-          />
-          <button onClick={handleAddOrEditGoal}>
-            {editGoalId ? 'Sửa' : 'Thêm'}
-          </button>
-        </div>
-        {uniqueMonths.map(month => (
-          <div key={month} className="month-group">
-            <h3>Tháng {month}</h3>
-            <ul className="list">
-              {goals.filter(g => g.month === month).map(goal => {
-                const achieved = calculateAchieved(studyLogs, month, goal.subjectId);
-                const status = achieved >= goal.targetDuration ? 'Hoàn thành ✅' : 'Chưa đạt ❌';
-                return (
-                  <li key={goal.id}>
-                    <span>
-                      {goal.subjectId ? subjects.find(sub => sub.id === goal.subjectId)?.name : 'Tổng'} - Mục tiêu: {goal.targetDuration} phút - Đạt: {achieved} phút - {status}
-                    </span>
-                    <div>
-                      <button onClick={() => handleEditGoal(goal)}>Sửa</button>
-                      <button onClick={() => handleDeleteGoal(goal.id)}>Xóa</button>
+
+        {selectedSubjectId && (
+          <section className="card">
+            <h2>Tiến độ: {currentSubjectName}</h2>
+
+            <div className="form-grid">
+              <input
+                type="datetime-local"
+                value={logForm.date}
+                onChange={(e) => setLogForm({ ...logForm, date: e.target.value })}
+              />
+              <input
+                type="number"
+                placeholder="Thời lượng (phút)"
+                min="1"
+                value={logForm.duration}
+                onChange={(e) => setLogForm({ ...logForm, duration: e.target.value })}
+              />
+              <input
+                placeholder="Nội dung đã học"
+                value={logForm.content}
+                onChange={(e) => setLogForm({ ...logForm, content: e.target.value })}
+              />
+              <input
+                placeholder="Ghi chú"
+                value={logForm.notes}
+                onChange={(e) => setLogForm({ ...logForm, notes: e.target.value })}
+              />
+              <button onClick={handleSaveLog}>
+                {editingLog ? 'Cập nhật log' : 'Thêm buổi học'}
+              </button>
+              {editingLog && (
+                <button className="secondary" onClick={() => setEditingLog(null)}>
+                  Hủy
+                </button>
+              )}
+            </div>
+
+            <div className="log-list">
+              {logs.filter((l) => l.subjectId === selectedSubjectId).length === 0 ? (
+                <p className="empty">Chưa có buổi học nào cho môn này</p>
+              ) : (
+                logs
+                  .filter((l) => l.subjectId === selectedSubjectId)
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((log) => (
+                    <div key={log.id} className="log-item">
+                      <div className="log-info">
+                        <time>{new Date(log.date).toLocaleString('vi-VN')}</time>
+                        <strong>{log.duration} phút</strong>
+                        <div>{log.content}</div>
+                        {log.notes && <small>{log.notes}</small>}
+                      </div>
+                      <div className="actions">
+                        <button className="edit" onClick={() => startEditLog(log)}>
+                          Sửa
+                        </button>
+                        <button className="delete" onClick={() => deleteLog(log.id)}>
+                          Xóa
+                        </button>
+                      </div>
                     </div>
-                  </li>
-                );
-              })}
-            </ul>
+                  ))
+              )}
+            </div>
+          </section>
+        )}
+        <section className="card">
+          <h2>Mục tiêu học tập hàng tháng</h2>
+
+          <div className="form-grid">
+            <input
+              type="month"
+              value={goalForm.month}
+              onChange={(e) => setGoalForm({ ...goalForm, month: e.target.value })}
+            />
+            <select
+              value={goalForm.subjectId ?? ''}
+              onChange={(e) => setGoalForm({ ...goalForm, subjectId: e.target.value || null })}
+            >
+              <option value="">→ Tổng thời lượng tháng</option>
+              {subjects.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              placeholder="Mục tiêu (phút)"
+              min="1"
+              value={goalForm.targetMinutes}
+              onChange={(e) => setGoalForm({ ...goalForm, targetMinutes: e.target.value })}
+            />
+            <button onClick={handleSaveGoal}>
+              {editingGoal ? 'Cập nhật mục tiêu' : 'Thêm mục tiêu'}
+            </button>
+            {editingGoal && (
+              <button className="secondary" onClick={() => setEditingGoal(null)}>
+                Hủy
+              </button>
+            )}
           </div>
-        ))}
-      </section>
+
+          {uniqueGoalMonths.length === 0 ? (
+            <p className="empty">Chưa có mục tiêu nào</p>
+          ) : (
+            uniqueGoalMonths.map((month) => {
+              const monthGoals = goals.filter((g) => g.month === month);
+              return (
+                <div key={month} className="month-group">
+                  <h3>Tháng {month}</h3>
+                  {monthGoals.map((goal) => {
+                    const achieved = getAchievedMinutes(logs, month, goal.subjectId ?? undefined);
+                    const isCompleted = achieved >= goal.targetMinutes;
+                    const subjectName = goal.subjectId
+                      ? subjects.find((s) => s.id === goal.subjectId)?.name || '?'
+                      : 'TỔNG';
+
+                    return (
+                      <div key={goal.id} className={`goal-item ${isCompleted ? 'completed' : 'pending'}`}>
+                        <div className="goal-info">
+                          <strong>{subjectName}</strong>
+                          <div>
+                            Mục tiêu: <b>{goal.targetMinutes.toLocaleString()} phút</b> — Đạt:{' '}
+                            <b>{achieved.toLocaleString()} phút</b>
+                          </div>
+                          <div className="status">
+                            {isCompleted ? 'Hoàn thành ✓' : `Còn thiếu ${goal.targetMinutes - achieved} phút`}
+                          </div>
+                        </div>
+                        <div className="actions">
+                          <button className="edit" onClick={() => startEditGoal(goal)}>
+                            Sửa
+                          </button>
+                          <button className="delete" onClick={() => deleteGoal(goal.id)}>
+                            Xóa
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })
+          )}
+        </section>
+      </main>
     </div>
   );
 }
