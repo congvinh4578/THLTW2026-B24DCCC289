@@ -1,0 +1,136 @@
+import type { Club, Registration } from '../types';
+export const mockClubs: Club[] = [
+  {
+    id: '1',
+    avatar: 'https://picsum.photos/id/1015/128/128',
+    name: 'Câu lạc bộ Lập trình',
+    foundingDate: '2022-03-15',
+    description:
+      '<p><strong>CLB chuyên về lập trình Web, Mobile và AI.</strong> Tổ chức workshop, hackathon hàng tháng.</p>',
+    leader: 'Nguyễn Văn A',
+    active: true,
+  },
+  {
+    id: '2',
+    avatar: 'https://picsum.photos/id/237/128/128',
+    name: 'Câu lạc bộ Tiếng Anh',
+    foundingDate: '2023-01-10',
+    description:
+      '<p>Nâng cao kỹ năng tiếng Anh giao tiếp và học thuật. Thường xuyên tổ chức speaking club.</p>',
+    leader: 'Trần Thị B',
+    active: true,
+  },
+  {
+    id: '3',
+    avatar: 'https://picsum.photos/id/201/128/128',
+    name: 'Câu lạc bộ Thiết kế Đồ họa',
+    foundingDate: '2022-08-20',
+    description:
+      '<p>Học Photoshop, Illustrator, Figma và các công cụ thiết kế hiện đại.</p>',
+    leader: 'Lê Văn C',
+    active: true,
+  },
+  {
+    id: '4',
+    avatar: 'https://picsum.photos/id/180/128/128',
+    name: 'Câu lạc bộ Âm nhạc',
+    foundingDate: '2021-11-05',
+    description: '<p>Chơi nhạc cụ, hát, sáng tác và biểu diễn.</p>',
+    leader: 'Phạm Thị D',
+    active: false,
+  },
+];
+
+export const mockRegistrations: Registration[] = [
+  {
+    id: 'reg001',
+    fullName: 'Phạm Minh Quân',
+    email: 'quan.pham@gmail.com',
+    phone: '0912345678',
+    gender: 'Nam',
+    address: 'Quận 1, TP. HCM',
+    skills: 'React, Node.js, Python',
+    clubId: '1',
+    reason:
+      'Em muốn học thêm về lập trình web và tham gia các dự án thực tế của CLB.',
+    status: 'Pending',
+    notes: '',
+    history: [],
+  },
+  {
+    id: 'reg002',
+    fullName: 'Nguyễn Thị Lan',
+    email: 'lan.nguyen@gmail.com',
+    phone: '0987654321',
+    gender: 'Nữ',
+    address: 'Quận 7, TP. HCM',
+    skills: 'IELTS 7.0, giao tiếp tiếng Anh tốt',
+    clubId: '2',
+    reason:
+      'Em muốn cải thiện kỹ năng nghe-nói và tham gia các hoạt động speaking club.',
+    status: 'Approved',
+    notes: '',
+    history: [
+      {
+        action: 'Approved',
+        timestamp: '14:25 15/03/2025',
+        admin: 'Admin',
+      },
+    ],
+  },
+  {
+    id: 'reg003',
+    fullName: 'Trần Văn Hải',
+    email: 'hai.tran@gmail.com',
+    phone: '0933123456',
+    gender: 'Nam',
+    address: 'Quận Bình Thạnh, TP. HCM',
+    skills: 'Photoshop, Figma, Illustrator',
+    clubId: '3',
+    reason: 'Em đam mê thiết kế và muốn học hỏi từ các anh chị trong CLB.',
+    status: 'Rejected',
+    notes: 'Số lượng thành viên đã đủ cho kỳ này',
+    history: [
+      {
+        action: 'Rejected',
+        timestamp: '09:15 20/03/2025',
+        reason: 'Số lượng thành viên đã đủ cho kỳ này',
+        admin: 'Admin',
+      },
+    ],
+  },
+  {
+    id: 'reg004',
+    fullName: 'Lê Thị Hương',
+    email: 'huong.le@gmail.com',
+    phone: '0978123456',
+    gender: 'Nữ',
+    address: 'Quận Thủ Đức, TP. HCM',
+    skills: 'Guitar, hát, sáng tác nhạc',
+    clubId: '4',
+    reason: 'Em yêu âm nhạc và muốn tham gia biểu diễn cùng CLB.',
+    status: 'Pending',
+    notes: '',
+    history: [],
+  },
+  {
+    id: 'reg005',
+    fullName: 'Hoàng Văn Nam',
+    email: 'nam.hoang@gmail.com',
+    phone: '0909123456',
+    gender: 'Nam',
+    address: 'Quận 3, TP. HCM',
+    skills: 'React, Tailwind, TypeScript',
+    clubId: '1',
+    reason: 'Em muốn đóng góp vào các dự án lập trình của CLB.',
+    status: 'Approved',
+    notes: '',
+    history: [
+      {
+        action: 'Approved',
+        timestamp: '16:40 25/03/2025',
+        admin: 'Admin',
+      },
+    ],
+  },
+];
